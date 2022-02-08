@@ -18,13 +18,20 @@ enum args_type {
   FROM_STDIN
 };
 
+void remove_leading_whitespace(std::string *line) {
+  if (!line->empty()) {
+    std::size_t pos = line->find_first_not_of(' ');
+    line->assign(line->substr(pos));
+  }
+}
+
 void upper_first(char **str) {
   (*str)[0] -= 32; 
 }
 
 int how_many_words(const char *line, char delim) {
   int nbr_words = 0;
-
+  
   for (int index = 0; line[index]; index++) {
     if (line[index] == delim) {
       nbr_words++;
@@ -65,7 +72,9 @@ char **split_string(const char *line, char delim) {
   return split;
 }
 
-const char *is_valid_instructions(const char *str) {
+std::string is_valid_instruction(const char *str) {
+  std::string result;
+
   const char *instructions [11] = {"push",
     "pop",
     "dump",
@@ -80,36 +89,44 @@ const char *is_valid_instructions(const char *str) {
 
   for (int index = 0; index < 11; index++) {
     if (str && !strcmp(str, instructions[index])) {
+      result = instructions[index];
       return instructions[index];
     }
   } 
   
-  return NULL;
+  return result;
 }
 
-//TODO: return full toke in the format: "type_value-nbr_value"
-const char *is_valid_value(const char *str) {
+std::string is_valid_value(const char *str) {
+  std::string result;
+
   const char *values[5] = {"int8",
                           "int16",
                           "int32",
                           "float",
                           "double"};
+
   if (how_many_words(str, '(') < 2) {
-    return NULL;
+    return result;
   }
 
   char **full_value = split_string(str, '(');
   char *value_type = full_value[0];
-  char *nbr = strtok(full_value[1], ")"); 
-
+  char *nbr = NULL;
+  
   for (int index = 0; index < 5; index++) {
-    if (str && !strcmp(value_type, values[index])) {
+    if (str && !strcmp(value_type, values[index]) &&
+        strstr(full_value[1], ")")) {
       upper_first(&value_type);
-      return value_type;
+      result = value_type;
+      result.append("-");
+      nbr = strtok(full_value[1], ")");
+      result.append(nbr);
+      return result;
     }
   }
 
-  return NULL;
+  return result;
 } 
 
 class IOperand
@@ -133,50 +150,46 @@ class IOperand
 class Lexer {
   public:
     std::queue<IOperand> *LexedQueue;
-    //TODO: include const token, to receive token from check_line_gramar. Change the name of the functon to "generate token"
+
     std::queue<IOperand>* lex_it(std::ifstream& p_file) {
-      char line[100];
+      //char line[100];
+      std::string token;
+      std::string line;       
 
       while (p_file.good()) {
-        p_file.getline(line, 100);
-        check_line_grammar(line);
-/*
-        if (token) {
-          std::cout << token << std::endl;
-        }
-*/
+        //p_file.getline(line, 100);
+        std::getline(p_file, line);
+        token = tokenize(line);
+        //TODO: push Token to Queue
+        //std::cout << token << std::endl;
       }
 
       return this->LexedQueue; 
     }
 
-    const char *check_line_grammar(const char *line) {
-
-      char **split = split_string(line, ' ');
-      int nbr_words = how_many_words(line, ' ');
-      const char *instr = NULL;
-      const char *value = NULL;
-      std::string token;
-
-      for (int i = 0; i < nbr_words; i++) {
-        if (i == 0) {
-          instr = is_valid_instructions(split[i]);
-        }
-        else if (i == 1) {
-          value = is_valid_value(split[i]);
-        }
-      }
-   
-      if (instr) {
-        token = strdup(instr);
-        //std::cout << "INSTR -> " << instr << std::endl;
-      }
-      if (value) {
-        token = token + "-" + value;
-        //std::cout <<"VALUE -> " << value << std::endl;
-      }
+    const char *tokenize(std::string line) {
       
-      std::cout << token.c_str() << std::endl; 
+      remove_leading_whitespace(&line);
+      std::cout << line.c_str() << std::endl;
+      char **split = split_string(line.c_str(), ' ');
+      int nbr_words = how_many_words(line.c_str(), ' ');
+      std::string instr;
+      std::string value;
+      std::string token;
+      
+      if (!(instr = is_valid_instruction(split[0])).empty()) {
+        token = instr;
+        if (instr == "push" || instr == "assert") {
+          value = is_valid_value(split[1]);
+          if (!value.empty()) {
+            token += "-" + value;
+          }
+          else {
+            token = "<invalid>";
+          }
+        }
+      }
+
       return token.c_str();    
     }
 
