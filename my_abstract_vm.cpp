@@ -209,7 +209,7 @@ class Lexer {
     *
     * lex_it for when program is on stdin
     *
-    std::queue<IOperand>* lex_it(char *cli_input) {
+    std::queue<std::string> lex_it(char *cli_input) {
       return this->LexedQueue; 
     }
     */
@@ -246,17 +246,12 @@ int main(int ac, char **av) {
   }
 
   //LEXER
+  //TODO: lexer when from stdin
   if (arg_type == PROGRAM_FILE) {
     Lexer ls;
     std::ifstream p_file;
     p_file.open(av[1]);
     ls.lex_it(p_file);
-    /*
-    while (!ls.LexedQueue.empty()) {
-      std::cout << ls.LexedQueue.front().c_str() << std::endl;
-      ls.LexedQueue.pop();
-    }
-*/
     p_file.close();
   }
   else if (arg_type == FROM_STDIN) {
@@ -266,12 +261,14 @@ int main(int ac, char **av) {
     */
   }
 
+  //TODO: Parser
   //PARSER
   /*
    * Parser ps = new Parser(lexed);
    * queue<IOperand> parsed = ps.parse_it();
    */
 
+  //TODO: Executor
   //EXECUTOR
   /*
    * executor(queue<IOperand> parsed);
@@ -282,6 +279,7 @@ int main(int ac, char **av) {
    * Executor class methods == 'Assembler' instructions
    */
 
+  //TODO: Destructor
   //DEL PARSER & LEXER
   
   
