@@ -3,6 +3,8 @@
 #include <fstream>
 #include <queue>
 #include <string.h>
+#include <vector>
+#define INVALID_TOKEN "<invalid>"
 
 enum eOperandType {
   Int8,
@@ -18,17 +20,12 @@ enum args_type {
   FROM_STDIN
 };
 
-void remove_leading_whitespace(std::string *line) {
-  if (!line->empty()) {
-    std::size_t pos = line->find_first_not_of(' ');
-    line->assign(line->substr(pos));
-  }
+//TODO: upp only the first, in a std::string container
+/*
+void upper_first(std::string str) {
+  str.c_str() -= 32; 
 }
-
-void upper_first(char **str) {
-  (*str)[0] -= 32; 
-}
-
+*/
 int how_many_words(const char *line, char delim) {
   int nbr_words = 0;
   
@@ -41,63 +38,56 @@ int how_many_words(const char *line, char delim) {
   return (nbr_words + 1);
 }
 
-char *get_word(const char *line, int index, char delim) {
-  char *word = NULL;
-  int end = index;
+std::string get_word(const std::string &line, int pos, char delim) {
+  std::string word;
+  int end = line.find_first_of(delim, pos);
+  word.assign(line, pos, (end - pos));
 
-  while (line[end]) {
-    if (line[end] == delim) {
-      break;
-    }
-    end++;
-  }
-
-  word = strndup(&line[index], end - index);
   return word;
 }
 
-char **split_string(const char *line, char delim) {
-  char **split;
-  int nbr_words = how_many_words(line, delim);
-  char *tmp = NULL;
+std::vector<std::string> split_string(const std::string& line, char delim) {
+  std::vector<std::string> split;
+  std::string word;
   int index = 0;
 
-  split = (char **)malloc(sizeof(char *) * nbr_words);
-  for (int i = 0; i < nbr_words; i++) {
-    tmp = get_word(line, index, delim);
-    split[i] = strndup(tmp, strlen(tmp));
-    index += strlen(tmp) + 1;
+  while (index < (int)line.size()) {
+    index = line.find_first_not_of(delim, index);
+    word = get_word(line, index, delim);
+    split.push_back(word);
+    index += word.size();
   }
-
+  
   return split;
 }
 
-std::string is_valid_instruction(const char *str) {
+std::string check_command(std::string str) {
   std::string result;
 
   const char *instructions [11] = {"push",
-    "pop",
-    "dump",
-    "assert",
-    "add",
-    "sub",
-    "mul",
-    "div",
-    "mod",
-    "print",
-    "exit"};
+                                   "pop",
+                                   "dump",
+                                   "assert",
+                                   "add",
+                                   "sub",
+                                   "mul",
+                                   "div",
+                                   "mod",
+                                   "print",
+                                   "exit"};
 
   for (int index = 0; index < 11; index++) {
-    if (str && !strcmp(str, instructions[index])) {
-      result = instructions[index];
-      return instructions[index];
+    if (!strcmp(str.c_str(), instructions[index])) {
+      return str;
     }
-  } 
-  
-  return result;
+  }
+
+  return INVALID_TOKEN;
 }
 
-std::string is_valid_value(const char *str) {
+std::string check_value(const std::vector<std::string> split) {
+  std::string value_type;
+  std::string value;
   std::string result;
 
   const char *values[5] = {"int8",
@@ -106,28 +96,59 @@ std::string is_valid_value(const char *str) {
                           "float",
                           "double"};
 
-  if (how_many_words(str, '(') < 2) {
-    return result;
-  }
-
-  char **full_value = split_string(str, '(');
-  char *value_type = full_value[0];
-  char *nbr = NULL;
+  value_type = get_word(split[1], 0, '(');
+  value = get_word(split[1], value_type.size(), ' ');
   
   for (int index = 0; index < 5; index++) {
-    if (str && !strcmp(value_type, values[index]) &&
-        strstr(full_value[1], ")")) {
-      upper_first(&value_type);
+    if (!strcmp(value_type.c_str(), values[index])) {
+      value_type[0] = toupper(value_type[0]);
       result = value_type;
-      result.append("-");
-      nbr = strtok(full_value[1], ")");
-      result.append(nbr);
-      return result;
+      if (value.c_str()[0] == '(' && value.c_str()[value.size() - 1] == ')') {
+        result += "-" + value.substr(1, value.size() - 2);
+        return result;
+      }
+    }
+  }
+
+  return INVALID_TOKEN;
+}
+
+std::string is_valid_instruction(const std::vector<std::string> split) {
+  std::string result;
+  std::string instr;
+  std::string value;
+
+  if (split.empty()) {
+    return "<blank>";  
+  }
+  else if(!strcmp(split[0].c_str(), ";") || split[0].c_str()[0] == ';') {
+    return "<comment>";
+  }
+  
+  instr = check_command(split[0]);
+  if (!strcmp(instr.c_str(), INVALID_TOKEN)) {
+    return INVALID_TOKEN;
+  }
+  else if (!strcmp(instr.c_str(), "push") ||
+           !strcmp(instr.c_str(), "assert")) {
+    value = check_value(split);
+    if (strcmp(value.c_str(), INVALID_TOKEN)) {
+      result += instr + "-";
+    }
+    result += value;
+  }
+  else {
+    result += instr;
+  }
+
+  if (split.size() > 2) {
+    if (strcmp(split[2].c_str(), ";") && split[2].c_str()[0] != ';') {
+      return INVALID_TOKEN;
     }
   }
 
   return result;
-} 
+}
 
 class IOperand
 {
@@ -149,48 +170,39 @@ class IOperand
 
 class Lexer {
   public:
-    std::queue<IOperand> *LexedQueue;
+    std::queue<std::string> LexedQueue;
 
-    std::queue<IOperand>* lex_it(std::ifstream& p_file) {
-      //char line[100];
+    std::queue<std::string> lex_it(std::ifstream& p_file) {
       std::string token;
-      std::string line;       
+      std::string line;
+      int line_nbr = 0;
 
       while (p_file.good()) {
-        //p_file.getline(line, 100);
+        line_nbr++;
         std::getline(p_file, line);
-        token = tokenize(line);
-        //TODO: push Token to Queue
-        //std::cout << token << std::endl;
+        try {
+          token = tokenize(line);
+          if (!strcmp(token.c_str(), INVALID_TOKEN)) {
+            throw token;
+          } 
+          LexedQueue.push(token);
+        }
+        catch(std::string token) {
+          std::cout << "Line " << line_nbr << ": Error : " << token << ": " << line << std::endl;
+          break;
+        }
       }
 
       return this->LexedQueue; 
     }
-
-    const char *tokenize(std::string line) {
-      
-      remove_leading_whitespace(&line);
-      std::cout << line.c_str() << std::endl;
-      char **split = split_string(line.c_str(), ' ');
-      int nbr_words = how_many_words(line.c_str(), ' ');
-      std::string instr;
-      std::string value;
+    
+    std::string tokenize(const std::string line) {
+      std::vector<std::string> split = split_string(line, ' ');
       std::string token;
       
-      if (!(instr = is_valid_instruction(split[0])).empty()) {
-        token = instr;
-        if (instr == "push" || instr == "assert") {
-          value = is_valid_value(split[1]);
-          if (!value.empty()) {
-            token += "-" + value;
-          }
-          else {
-            token = "<invalid>";
-          }
-        }
-      }
+      token = is_valid_instruction(split);
 
-      return token.c_str();    
+      return token;    
     }
 
     /*
@@ -235,17 +247,16 @@ int main(int ac, char **av) {
 
   //LEXER
   if (arg_type == PROGRAM_FILE) {
-    /*
-    * ifstream p_file;
-    * p_file.open(av[1]);
-    * Lexer *lx = new Lexer(p_file);
-    * queue<IOperand> lexed =  lx.lex_it();
-    * close(p_file);
-    */
     Lexer ls;
     std::ifstream p_file;
     p_file.open(av[1]);
     ls.lex_it(p_file);
+    /*
+    while (!ls.LexedQueue.empty()) {
+      std::cout << ls.LexedQueue.front().c_str() << std::endl;
+      ls.LexedQueue.pop();
+    }
+*/
     p_file.close();
   }
   else if (arg_type == FROM_STDIN) {
