@@ -20,26 +20,9 @@ enum args_type {
   FROM_STDIN
 };
 
-//TODO: upp only the first, in a std::string container
-/*
-void upper_first(std::string str) {
-  str.c_str() -= 32; 
-}
-*/
-int how_many_words(const char *line, char delim) {
-  int nbr_words = 0;
-  
-  for (int index = 0; line[index]; index++) {
-    if (line[index] == delim) {
-      nbr_words++;
-    }
-  }
-
-  return (nbr_words + 1);
-}
-
 std::string get_word(const std::string &line, int pos, char delim) {
   std::string word;
+
   int end = line.find_first_of(delim, pos);
   word.assign(line, pos, (end - pos));
 
@@ -121,6 +104,9 @@ std::string is_valid_instruction(const std::vector<std::string> split) {
   if (split.empty()) {
     return "<blank>";  
   }
+  else if (!strcmp(split[0].c_str(), ";;")) {
+    return "<EOP>";
+  }
   else if(!strcmp(split[0].c_str(), ";") || split[0].c_str()[0] == ';') {
     return "<comment>";
   }
@@ -171,11 +157,17 @@ class IOperand
 class Lexer {
   public:
     std::queue<std::string> LexedQueue;
-
+    /*
+    *
+    * lex_it for when program is from a file
+    * (converted to a stream)
+    */
     std::queue<std::string> lex_it(std::ifstream& p_file) {
       std::string token;
       std::string line;
       int line_nbr = 0;
+
+      LexedQueue.push("<file>");
 
       while (p_file.good()) {
         line_nbr++;
@@ -196,6 +188,41 @@ class Lexer {
       return this->LexedQueue; 
     }
     
+    /*
+    *
+    * lex_it for when program is from stdin
+    */
+    std::queue<std::string> lex_it(std::string user_input) {
+      std::string line;
+      std::string token;
+      int index = 0;
+      int line_nbr = 0;
+
+      LexedQueue.push("<stdin>");
+
+      line = get_word(user_input, index, '\n');
+      while (!line.empty()) {
+        try {
+          token = tokenize(line);
+          if (!strcmp(token.c_str(), INVALID_TOKEN)) {
+            throw token;
+          } 
+          LexedQueue.push(token);
+        }
+        catch(std::string token) {
+          std::cout << "Line " << line_nbr << ": Error : " << token << ": " << line << std::endl;
+          break;
+        }
+        index += line.size() + 1;
+        if (index > (int)user_input.size()) {
+          break;
+        }
+        line = get_word(user_input, index, '\n');
+      }
+
+      return this->LexedQueue;
+    }
+
     std::string tokenize(const std::string line) {
       std::vector<std::string> split = split_string(line, ' ');
       std::string token;
@@ -204,15 +231,6 @@ class Lexer {
 
       return token;    
     }
-
-    /*
-    *
-    * lex_it for when program is on stdin
-    *
-    std::queue<std::string> lex_it(char *cli_input) {
-      return this->LexedQueue; 
-    }
-    */
 };
 
 
@@ -238,6 +256,13 @@ int check_if_program_file(int ac, char **av) {
   return NO_PARAMS;
 }
 
+void print_lexed(Lexer lx) {
+  while(!lx.LexedQueue.empty()) {
+    std::cout<< lx.LexedQueue.front() << std::endl;
+    lx.LexedQueue.pop();
+  }
+}
+
 int main(int ac, char **av) {
   int arg_type = check_if_program_file(ac, av);
   if (arg_type == NO_PARAMS) {
@@ -248,17 +273,18 @@ int main(int ac, char **av) {
   //LEXER
   //TODO: lexer when from stdin
   if (arg_type == PROGRAM_FILE) {
-    Lexer ls;
+    Lexer lx;
     std::ifstream p_file;
     p_file.open(av[1]);
-    ls.lex_it(p_file);
+    lx.lex_it(p_file);
+    print_lexed(lx);
     p_file.close();
   }
   else if (arg_type == FROM_STDIN) {
-    /*
-    * Lexer *lx = new Lexer(ac, av);
-    * queue<IOperand> lexed = lx.lex_it();
-    */
+    Lexer lx;
+    std::string str(av[1]);
+    lx.lex_it(str);
+    print_lexed(lx);
   }
 
   //TODO: Parser
