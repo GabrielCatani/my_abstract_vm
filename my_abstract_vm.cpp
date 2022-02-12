@@ -155,14 +155,15 @@ class IOperand
 };
 
 class Lexer {
-  public:
+  private:
     std::queue<std::string> LexedQueue;
+
+  public:
     /*
-    *
     * lex_it for when program is from a file
     * (converted to a stream)
     */
-    std::queue<std::string> lex_it(std::ifstream& p_file) {
+    void lex_it(std::ifstream& p_file) {
       std::string token;
       std::string line;
       int line_nbr = 0;
@@ -184,15 +185,13 @@ class Lexer {
           break;
         }
       }
-
-      return this->LexedQueue; 
     }
     
     /*
     *
     * lex_it for when program is from stdin
     */
-    std::queue<std::string> lex_it(std::string user_input) {
+    void lex_it(std::string user_input) {
       std::string line;
       std::string token;
       int index = 0;
@@ -219,8 +218,6 @@ class Lexer {
         }
         line = get_word(user_input, index, '\n');
       }
-
-      return this->LexedQueue;
     }
 
     std::string tokenize(const std::string line) {
@@ -231,8 +228,89 @@ class Lexer {
 
       return token;    
     }
+
+    std::queue<std::string> getLexedQueue() {
+      return this->LexedQueue;
+    }
 };
 
+class Parser {
+  private:
+    std::queue<std::string> ParsedQueue;
+    int line_nbr;
+    int nbr_elements_simulated_stack;
+  
+  public:
+    void parse_it(std::queue<std::string> LexedQueue) {
+      std::string input_type = LexedQueue.front();
+      std::string result_status;      
+
+      if (!strcmp(input_type.c_str(), "<stdin>")) {
+        if (strcmp(LexedQueue.back().c_str(), "<EOP>")) {
+          std::cout << "invalid program" << std::endl;
+        }
+      }
+      else if (!strcmp(input_type.c_str(), "<file>")) {
+        if (strcmp(LexedQueue.back().c_str(), "exit")) {
+          std::cout << "invalid program" << std::endl;
+        }
+      }
+
+      line_nbr = -1;
+      while(!LexedQueue.empty()) {
+        line_nbr++;
+        try {
+          result_status = simulate_instruction(LexedQueue.front());       if (strcmp(result_status.c_str(), "OK")) {
+            throw result_status;
+          }
+        }
+        catch(std::string e) {
+          std::cout << "Line " << line_nbr << ": Error : " << e << std::endl;
+          break;
+        }
+        LexedQueue.pop();
+      }
+       
+    }
+
+    std::queue<std::string> getParsedQueue() {
+      return this->ParsedQueue;
+    }
+
+    std::string simulate_instruction(std::string instr) {
+      std::string str;
+      std::string result = "OK";      
+
+      str = get_word(instr, 0, '-');
+      if (!strcmp(str.c_str(), "pop")    ||
+          !strcmp(str.c_str(), "assert") ||
+          !strcmp(str.c_str(), "print")) {
+        if (nbr_elements_simulated_stack == 0) {
+          str[0] = toupper(str[0]);
+          result = str + " on empty stack";
+        }
+      }
+      else if (!strcmp(str.c_str(), "add") ||
+               !strcmp(str.c_str(), "sub") ||
+               !strcmp(str.c_str(), "mul") ||
+               !strcmp(str.c_str(), "div") ||
+               !strcmp(str.c_str(), "mod")) {
+        if (nbr_elements_simulated_stack < 2) {
+          str[0] = toupper(str[0]);
+          result = str + " on stack with less then 2 operands";
+        }
+        else {
+          this->nbr_elements_simulated_stack--;
+        }
+      }
+      else if (!strcmp(str.c_str(), "push")) {
+        this->nbr_elements_simulated_stack++;
+      }
+
+      return result;
+    }
+
+};
 
 
 /*
@@ -257,9 +335,10 @@ int check_if_program_file(int ac, char **av) {
 }
 
 void print_lexed(Lexer lx) {
-  while(!lx.LexedQueue.empty()) {
-    std::cout<< lx.LexedQueue.front() << std::endl;
-    lx.LexedQueue.pop();
+  std::queue<std::string> LexedQueue = lx.getLexedQueue();
+  while(!LexedQueue.empty()) {
+    std::cout<< LexedQueue.front() << std::endl;
+    LexedQueue.pop();
   }
 }
 
@@ -269,11 +348,11 @@ int main(int ac, char **av) {
     std::cout << "No instructions passed" << std::endl;
     return -1;
   }
-
+  //Instantiate objects;
+  Lexer lx;
+  Parser ps;
   //LEXER
-  //TODO: lexer when from stdin
   if (arg_type == PROGRAM_FILE) {
-    Lexer lx;
     std::ifstream p_file;
     p_file.open(av[1]);
     lx.lex_it(p_file);
@@ -281,18 +360,14 @@ int main(int ac, char **av) {
     p_file.close();
   }
   else if (arg_type == FROM_STDIN) {
-    Lexer lx;
     std::string str(av[1]);
     lx.lex_it(str);
     print_lexed(lx);
   }
 
-  //TODO: Parser
   //PARSER
-  /*
-   * Parser ps = new Parser(lexed);
-   * queue<IOperand> parsed = ps.parse_it();
-   */
+   ps.parse_it(lx.getLexedQueue());
+   
 
   //TODO: Executor
   //EXECUTOR
@@ -305,10 +380,6 @@ int main(int ac, char **av) {
    * Executor class methods == 'Assembler' instructions
    */
 
-  //TODO: Destructor
-  //DEL PARSER & LEXER
-  
-  
 
   return 0;
 }
