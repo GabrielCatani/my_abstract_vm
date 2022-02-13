@@ -44,7 +44,7 @@ std::vector<std::string> split_string(const std::string& line, char delim) {
   return split;
 }
 
-std::string check_command(std::string str) {
+std::string check_command(const std::string& str) {
   std::string result;
 
   const char *instructions [11] = {"push",
@@ -68,7 +68,7 @@ std::string check_command(std::string str) {
   return INVALID_TOKEN;
 }
 
-std::string check_value(const std::vector<std::string> split) {
+std::string check_value(const std::vector<std::string>& split) {
   std::string value_type;
   std::string value;
   std::string result;
@@ -96,7 +96,7 @@ std::string check_value(const std::vector<std::string> split) {
   return INVALID_TOKEN;
 }
 
-std::string is_valid_instruction(const std::vector<std::string> split) {
+std::string is_valid_instruction(const std::vector<std::string>& split) {
   std::string result;
   std::string instr;
   std::string value;
@@ -191,7 +191,7 @@ class Lexer {
     *
     * lex_it for when program is from stdin
     */
-    void lex_it(std::string user_input) {
+    void lex_it(std::string& user_input) {
       std::string line;
       std::string token;
       int index = 0;
@@ -220,7 +220,7 @@ class Lexer {
       }
     }
 
-    std::string tokenize(const std::string line) {
+    std::string tokenize(const std::string& line) {
       std::vector<std::string> split = split_string(line, ' ');
       std::string token;
       
@@ -277,7 +277,7 @@ class Parser {
       return this->ParsedQueue;
     }
 
-    std::string simulate_instruction(std::string instr) {
+    std::string simulate_instruction(const std::string& instr) {
       std::string str;
       std::string result = "OK";      
 
@@ -334,7 +334,7 @@ int check_if_program_file(int ac, char **av) {
   return NO_PARAMS;
 }
 
-void print_lexed(Lexer lx) {
+void print_lexed(Lexer& lx) {
   std::queue<std::string> LexedQueue = lx.getLexedQueue();
   while(!LexedQueue.empty()) {
     std::cout<< LexedQueue.front() << std::endl;
