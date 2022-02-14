@@ -4,6 +4,7 @@
 #include <queue>
 #include <string.h>
 #include <vector>
+#include <cstdint>
 #define INVALID_TOKEN "<invalid>"
 
 enum eOperandType {
@@ -141,7 +142,7 @@ class IOperand
   public:
 
     virtual std::string const & toString() const = 0;
-
+/*
     virtual int           getPrecision() const = 0;
     virtual eOperandType  getType() const = 0;
 
@@ -152,6 +153,7 @@ class IOperand
     virtual IOperand *  operator%(const IOperand &rhs) const = 0;
 
     virtual ~IOperand() {}
+*/
 };
 
 class Lexer {
@@ -312,7 +314,42 @@ class Parser {
 
 };
 
-//TODO: change method, to check for multiple parameters
+template<typename T>
+class Operand : public IOperand {
+  private:
+    T value;
+    std::string value_str;
+    
+  public:
+   
+    Operand(int _value, std::string _value_str) {
+      this->value = _value;
+      this->value_str = _value_str;
+    }    
+
+    std::string const & toString() const {
+      return this->value_str;
+    }
+
+    void incrementValue() {
+      this->value++;
+    }
+   
+
+   /*
+    int           getPrecision() const = 0;
+    eOperandType  getType() const = 0;
+
+    IOperand *  operator+(const IOperand &rhs) const = 0;
+    IOperand *  operator-(const IOperand &rhs) const = 0;
+    IOperand *  operator*(const IOperand &rhs) const = 0;
+    IOperand *  operator/(const IOperand &rhs) const = 0;
+    IOperand *  operator%(const IOperand &rhs) const = 0;
+
+    ~IOperand() {}
+   */
+};
+
 /*
 * Check if CLI parameters are reference to a programa file
 * or the program itself is been passed on stdin
@@ -370,13 +407,14 @@ int main(int ac, char **av) {
     return -1;
   }
   
-  for (int i = 0; i < (ac - 1); i++) {
-    std::cout << arg_types[i] << std::endl;
-  }
-
   for (int index = 0; index < (ac - 1); index++) {
-
     //Instantiate objects;
+    Operand<int> ops(35, std::to_string(35));
+    Operand<int32_t> op_2(10, std::to_string(10));
+
+    ops.incrementValue();
+    std::cout << ops.toString() << std::endl;
+    std::cout << op_2.toString() << std::endl;
     Lexer lx;
     Parser ps;
     //LEXER
@@ -397,6 +435,7 @@ int main(int ac, char **av) {
     ps.parse_it(lx.getLexedQueue());
    }
 
+  free(arg_types);
   //TODO: Executor
   //EXECUTOR
   /*
