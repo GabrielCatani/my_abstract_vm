@@ -312,7 +312,7 @@ class Parser {
 
 };
 
-
+//TODO: change method, to check for multiple parameters
 /*
 * Check if CLI parameters are reference to a programa file
 * or the program itself is been passed on stdin
@@ -321,17 +321,37 @@ class Parser {
 * 
 * return ENUM args_type
 */
-int check_if_program_file(int ac, char **av) {
-  if (ac >= 2) {
-    struct stat buf;
-    if (!stat(av[1], &buf)) {
-      std::cout << "It's a file!" << std::endl;
-      return PROGRAM_FILE;
+int *check_if_program_file(int ac, char **av) {
+  int *array = NULL;  
+  
+  if (ac < 2) {
+    array = (int *)malloc(sizeof(int) * 1);
+    if (!array) {
+      return NULL;
     }
-    std::cout << "Not a file!" << std::endl;
-    return FROM_STDIN;
+    array[0] = NO_PARAMS;
+    return array;
   }
-  return NO_PARAMS;
+  
+  array = (int *)malloc(sizeof(int) * (ac - 1));
+  if (!array) {
+    return NULL;
+  }  
+
+  for (int index = 1; index < ac; index++) {
+    if (ac >= 2) {
+      struct stat buf;
+      if (!stat(av[index], &buf)) {
+        std::cout << "It's a file!" << std::endl;
+        array[index - 1] = PROGRAM_FILE;
+      }
+      else {
+        std::cout << "Not a file!" << std::endl;
+        array[index - 1] = FROM_STDIN;
+      }
+    }
+}
+  return array;
 }
 
 void print_lexed(Lexer& lx) {
@@ -343,31 +363,39 @@ void print_lexed(Lexer& lx) {
 }
 
 int main(int ac, char **av) {
-  int arg_type = check_if_program_file(ac, av);
-  if (arg_type == NO_PARAMS) {
+  int *arg_types = check_if_program_file(ac, av);
+
+  if (!arg_types || arg_types[0] == NO_PARAMS) {
     std::cout << "No instructions passed" << std::endl;
     return -1;
   }
-  //Instantiate objects;
-  Lexer lx;
-  Parser ps;
-  //LEXER
-  if (arg_type == PROGRAM_FILE) {
-    std::ifstream p_file;
-    p_file.open(av[1]);
-    lx.lex_it(p_file);
-    print_lexed(lx);
-    p_file.close();
-  }
-  else if (arg_type == FROM_STDIN) {
-    std::string str(av[1]);
-    lx.lex_it(str);
-    print_lexed(lx);
+  
+  for (int i = 0; i < (ac - 1); i++) {
+    std::cout << arg_types[i] << std::endl;
   }
 
-  //PARSER
-   ps.parse_it(lx.getLexedQueue());
-   
+  for (int index = 0; index < (ac - 1); index++) {
+
+    //Instantiate objects;
+    Lexer lx;
+    Parser ps;
+    //LEXER
+    if (arg_types[index] == PROGRAM_FILE) {
+      std::ifstream p_file;
+      p_file.open(av[index + 1]);
+      lx.lex_it(p_file);
+      print_lexed(lx);
+      p_file.close();
+    }
+    else if (arg_types[index] == FROM_STDIN) {
+      std::string str(av[index + 1]);
+      lx.lex_it(str);
+      print_lexed(lx);
+    }
+
+    //PARSER
+    ps.parse_it(lx.getLexedQueue());
+   }
 
   //TODO: Executor
   //EXECUTOR
