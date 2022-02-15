@@ -5,6 +5,7 @@
 #include <string.h>
 #include <vector>
 #include <cstdint>
+#include <typeinfo>
 #define INVALID_TOKEN "<invalid>"
 
 enum eOperandType {
@@ -20,6 +21,16 @@ enum args_type {
   PROGRAM_FILE,
   FROM_STDIN
 };
+
+void pretty_print_type(int type_index) {
+  std::string types[] = {"Int8",
+                         "Int16",
+                         "Int32",
+                         "Float",
+                         "Double"};
+
+  std::cout << types[type_index] << std::endl;
+}
 
 std::string get_word(const std::string &line, int pos, char delim) {
   std::string word;
@@ -142,18 +153,20 @@ class IOperand
   public:
 
     virtual std::string const & toString() const = 0;
-/*
+
     virtual int           getPrecision() const = 0;
+
     virtual eOperandType  getType() const = 0;
 
     virtual IOperand *  operator+(const IOperand &rhs) const = 0;
+/*
     virtual IOperand *  operator-(const IOperand &rhs) const = 0;
     virtual IOperand *  operator*(const IOperand &rhs) const = 0;
     virtual IOperand *  operator/(const IOperand &rhs) const = 0;
     virtual IOperand *  operator%(const IOperand &rhs) const = 0;
-
-    virtual ~IOperand() {}
 */
+    virtual ~IOperand() {}
+
 };
 
 class Lexer {
@@ -317,37 +330,59 @@ class Parser {
 template<typename T>
 class Operand : public IOperand {
   private:
-    T value;
-    std::string value_str;
+    eOperandType _type;
+    T _value;
+    std::string _value_str;
     
   public:
    
-    Operand(int _value, std::string _value_str) {
-      this->value = _value;
-      this->value_str = _value_str;
+    Operand() {}
+
+    Operand(eOperandType type, T value, std::string value_str) {
+      this->_type = type;
+      this->_value = value;
+      this->_value_str = value_str;
     }    
 
     std::string const & toString() const {
-      return this->value_str;
+      return this->_value_str;
     }
 
-    void incrementValue() {
-      this->value++;
+
+    int           getPrecision() const {
+      return static_cast<eOperandType>(this->_type);
     }
-   
 
-   /*
-    int           getPrecision() const = 0;
-    eOperandType  getType() const = 0;
+    eOperandType  getType() const {
+      return this->_type;
+    }
+    
+    T getValue() const {
+      return this->_value;
+    }
 
-    IOperand *  operator+(const IOperand &rhs) const = 0;
+    IOperand *  operator+(const IOperand &rhs) const {
+      const Operand<T> *tmp = static_cast<const Operand<T> *>(&rhs);
+      eOperandType highest_type = (this->_type > tmp->getType()) ? this->_type : tmp->getType();
+      
+      switch(highest_type) {
+        case(Int8):
+          return new Operand<T>(highest_type, this->_value + tmp->getValue(), std::to_string(this->_value + tmp->getValue()));
+        case(Int16):;
+        case(Int32):
+          return new Operand<T>(highest_type, this->_value + tmp->getValue(), std::to_string(this->_value + tmp->getValue()));
+        case(Float):;
+        case(Double):;
+      }
+      return nullptr; 
+    }
+/*
     IOperand *  operator-(const IOperand &rhs) const = 0;
     IOperand *  operator*(const IOperand &rhs) const = 0;
     IOperand *  operator/(const IOperand &rhs) const = 0;
     IOperand *  operator%(const IOperand &rhs) const = 0;
-
-    ~IOperand() {}
-   */
+*/
+    //~IOperand() {};
 };
 
 /*
@@ -409,12 +444,10 @@ int main(int ac, char **av) {
   
   for (int index = 0; index < (ac - 1); index++) {
     //Instantiate objects;
-    Operand<int> ops(35, std::to_string(35));
-    Operand<int32_t> op_2(10, std::to_string(10));
-
-    ops.incrementValue();
-    std::cout << ops.toString() << std::endl;
-    std::cout << op_2.toString() << std::endl;
+    Operand<int8_t> ops(Int8, 35, std::to_string(35));
+    Operand<int32_t> op_2(Int32, 10, std::to_string(10));
+    
+    std::cout << (ops + op_2)->toString() << std::endl;
     Lexer lx;
     Parser ps;
     //LEXER
