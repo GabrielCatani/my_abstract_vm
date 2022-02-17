@@ -362,18 +362,36 @@ class Operand : public IOperand {
     }
 
     IOperand *  operator+(const IOperand &rhs) const {
-      const Operand<T> *tmp = static_cast<const Operand<T> *>(&rhs);
-      eOperandType highest_type = (this->_type > tmp->getType()) ? this->_type : tmp->getType();
-      
+      eOperandType highest_type = (this->_type >= rhs.getType()) ? this->_type : rhs.getType();
+      float f_value = 0.0;
+      double d_value = 0.0;
+      int8_t i8_value = 0;
+      int16_t i16_value = 0;
+      int32_t i32_value = 0;
+
       switch(highest_type) {
         case(Int8):
-          return new Operand<T>(highest_type, this->_value + tmp->getValue(), std::to_string(this->_value + tmp->getValue()));
-        case(Int16):;
+          i8_value = static_cast<int8_t>(this->_value) + 
+                    static_cast<int8_t>(std::stoull(rhs.toString()));
+          return new Operand<int8_t>(Int8, i8_value, std::to_string(i8_value));
+        case(Int16):
+          i16_value = static_cast<int16_t>(this->_value) + 
+                    static_cast<int16_t>(std::stoull(rhs.toString()));
+          return new Operand<int16_t>(Int16, i16_value, std::to_string(i16_value));
         case(Int32):
-          return new Operand<T>(highest_type, this->_value + tmp->getValue(), std::to_string(this->_value + tmp->getValue()));
-        case(Float):;
-        case(Double):;
+          i32_value = static_cast<int32_t>(this->_value) + 
+                    static_cast<int32_t>(std::stoull(rhs.toString()));
+          return new Operand<int32_t>(Int32, i32_value, std::to_string(i32_value));
+        case(Float):
+          f_value = static_cast<float>(this->_value) + 
+                    static_cast<float>(std::stof(rhs.toString()));
+          return new Operand<float>(Float, f_value, std::to_string(f_value));
+        case(Double):
+          d_value = static_cast<double>(this->_value) + 
+                    static_cast<double>(std::stod(rhs.toString()));
+          return new Operand<double>(Double, d_value, std::to_string(d_value));
       }
+
       return nullptr; 
     }
 /*
@@ -444,8 +462,8 @@ int main(int ac, char **av) {
   
   for (int index = 0; index < (ac - 1); index++) {
     //Instantiate objects;
-    Operand<int8_t> ops(Int8, 35, std::to_string(35));
-    Operand<int32_t> op_2(Int32, 10, std::to_string(10));
+    Operand<int32_t> ops(Int32, 35, std::to_string(35));
+    Operand<int16_t> op_2(Int16, 10, std::to_string(10));
     
     std::cout << (ops + op_2)->toString() << std::endl;
     Lexer lx;
