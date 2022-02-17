@@ -394,15 +394,161 @@ class Operand : public IOperand {
 
       return nullptr; 
     }
-/*
-    IOperand *  operator-(const IOperand &rhs) const = 0;
-    IOperand *  operator*(const IOperand &rhs) const = 0;
-    IOperand *  operator/(const IOperand &rhs) const = 0;
-    IOperand *  operator%(const IOperand &rhs) const = 0;
-*/
-    //~IOperand() {};
+
+    IOperand *  operator-(const IOperand &rhs) const {
+      eOperandType highest_type = (this->_type >= rhs.getType()) ? this->_type : rhs.getType();
+      float f_value = 0.0;
+      double d_value = 0.0;
+      int8_t i8_value = 0;
+      int16_t i16_value = 0;
+      int32_t i32_value = 0;
+
+      switch(highest_type) {
+        case(Int8):
+          i8_value = static_cast<int8_t>(this->_value) - 
+                    static_cast<int8_t>(std::stoull(rhs.toString()));
+          return new Operand<int8_t>(Int8, i8_value, std::to_string(i8_value));
+        case(Int16):
+          i16_value = static_cast<int16_t>(this->_value) - 
+                    static_cast<int16_t>(std::stoull(rhs.toString()));
+          return new Operand<int16_t>(Int16, i16_value, std::to_string(i16_value));
+        case(Int32):
+          i32_value = static_cast<int32_t>(this->_value) - 
+                    static_cast<int32_t>(std::stoull(rhs.toString()));
+          return new Operand<int32_t>(Int32, i32_value, std::to_string(i32_value));
+        case(Float):
+          f_value = static_cast<float>(this->_value) -
+                    static_cast<float>(std::stof(rhs.toString()));
+          return new Operand<float>(Float, f_value, std::to_string(f_value));
+        case(Double):
+          d_value = static_cast<double>(this->_value) - 
+                    static_cast<double>(std::stod(rhs.toString()));
+          return new Operand<double>(Double, d_value, std::to_string(d_value));
+      }
+
+      return nullptr; 
+    }
+
+
+    IOperand *  operator*(const IOperand &rhs) const {
+      eOperandType highest_type = (this->_type >= rhs.getType()) ? this->_type : rhs.getType();
+      float f_value = 0.0;
+      double d_value = 0.0;
+      int8_t i8_value = 0;
+      int16_t i16_value = 0;
+      int32_t i32_value = 0;
+
+      switch(highest_type) {
+        case(Int8):
+          i8_value = static_cast<int8_t>(this->_value) * 
+                    static_cast<int8_t>(std::stoull(rhs.toString()));
+          return new Operand<int8_t>(Int8, i8_value, std::to_string(i8_value));
+        case(Int16):
+          i16_value = static_cast<int16_t>(this->_value) * 
+                    static_cast<int16_t>(std::stoull(rhs.toString()));
+          return new Operand<int16_t>(Int16, i16_value, std::to_string(i16_value));
+        case(Int32):
+          i32_value = static_cast<int32_t>(this->_value) * 
+                    static_cast<int32_t>(std::stoull(rhs.toString()));
+          return new Operand<int32_t>(Int32, i32_value, std::to_string(i32_value));
+        case(Float):
+          f_value = static_cast<float>(this->_value) *
+                    static_cast<float>(std::stof(rhs.toString()));
+          return new Operand<float>(Float, f_value, std::to_string(f_value));
+        case(Double):
+          d_value = static_cast<double>(this->_value) * 
+                    static_cast<double>(std::stod(rhs.toString()));
+          return new Operand<double>(Double, d_value, std::to_string(d_value));
+      }
+
+      return nullptr; 
+    }
+
+
+    IOperand *  operator/(const IOperand &rhs) const {
+      eOperandType highest_type = (this->_type >= rhs.getType()) ? this->_type : rhs.getType();
+      float f_value = 0.0;
+      double d_value = 0.0;
+      int8_t i8_value = 0;
+      int16_t i16_value = 0;
+      int32_t i32_value = 0;
+
+      if (std::stoull(rhs.toString()) == 0) {
+        throw "Division by Zero";
+        return nullptr;
+      }
+
+      switch(highest_type) {
+        case(Int8):
+          i8_value = static_cast<int8_t>(this->_value) / 
+                    static_cast<int8_t>(std::stoull(rhs.toString()));
+          return new Operand<int8_t>(Int8, i8_value, std::to_string(i8_value));
+        case(Int16):
+          i16_value = static_cast<int16_t>(this->_value) / 
+                    static_cast<int16_t>(std::stoull(rhs.toString()));
+          return new Operand<int16_t>(Int16, i16_value, std::to_string(i16_value));
+        case(Int32):
+          i32_value = static_cast<int32_t>(this->_value) / 
+                    static_cast<int32_t>(std::stoull(rhs.toString()));
+          return new Operand<int32_t>(Int32, i32_value, std::to_string(i32_value));
+        case(Float):
+          f_value = static_cast<float>(this->_value) /
+                    static_cast<float>(std::stof(rhs.toString()));
+          return new Operand<float>(Float, f_value, std::to_string(f_value));
+        case(Double):
+          d_value = static_cast<double>(this->_value) / 
+                    static_cast<double>(std::stod(rhs.toString()));
+          return new Operand<double>(Double, d_value, std::to_string(d_value));
+      }
+
+      return nullptr;       
+    }
+
+    IOperand *  operator%(const IOperand &rhs) const {
+      eOperandType highest_type = (this->_type >= rhs.getType()) ? this->_type : rhs.getType();
+      float f_value = 0.0;
+      double d_value = 0.0;
+      int8_t i8_value = 0;
+      int16_t i16_value = 0;
+      int32_t i32_value = 0;
+
+      if (std::stoull(rhs.toString()) == 0) {
+        throw "Division by Zero";
+        return nullptr;
+      }
+
+      switch(highest_type) {
+        case(Int8):
+          i8_value = static_cast<int8_t>(this->_value) %
+                    static_cast<int8_t>(std::stoull(rhs.toString()));
+          return new Operand<int8_t>(Int8, i8_value, std::to_string(i8_value));
+        case(Int16):
+          i16_value = static_cast<int16_t>(this->_value) % 
+                    static_cast<int16_t>(std::stoull(rhs.toString()));
+          return new Operand<int16_t>(Int16, i16_value, std::to_string(i16_value));
+        case(Int32):
+          i32_value = static_cast<int32_t>(this->_value) % 
+                    static_cast<int32_t>(std::stoull(rhs.toString()));
+          return new Operand<int32_t>(Int32, i32_value, std::to_string(i32_value));
+        case(Float):
+          f_value = static_cast<float>(static_cast<int32_t>(this->_value) % 
+                    static_cast<int32_t>(std::stoull(rhs.toString())));
+          return new Operand<float>(Float, f_value, std::to_string(f_value));
+        case(Double):
+          d_value = static_cast<double>(static_cast<int32_t>(this->_value) % 
+                    static_cast<int32_t>(std::stoull(rhs.toString())));
+          return new Operand<double>(Double, d_value, std::to_string(d_value));
+      }
+
+      return nullptr;
+    }
+
+    ~Operand() {};
 };
 
+//TODO: create factory for creating operands
+//TODO: Implement executor 
+//TODO: make code clearer for the operator overloads
 /*
 * Check if CLI parameters are reference to a programa file
 * or the program itself is been passed on stdin
@@ -462,10 +608,16 @@ int main(int ac, char **av) {
   
   for (int index = 0; index < (ac - 1); index++) {
     //Instantiate objects;
-    Operand<int32_t> ops(Int32, 35, std::to_string(35));
-    Operand<int16_t> op_2(Int16, 10, std::to_string(10));
+    Operand<int8_t> ops(Int8, 35, std::to_string(35));
+    Operand<int16_t> op_2(Int16, 5, std::to_string(5));
     
-    std::cout << (ops + op_2)->toString() << std::endl;
+    try {
+      std::cout << (ops / op_2)->toString() << std::endl;
+    }
+    catch(const char* e) {
+      std::cout << e << std::endl;
+      return 1;
+    }
     Lexer lx;
     Parser ps;
     //LEXER
