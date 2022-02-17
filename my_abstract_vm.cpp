@@ -159,12 +159,12 @@ class IOperand
     virtual eOperandType  getType() const = 0;
 
     virtual IOperand *  operator+(const IOperand &rhs) const = 0;
-/*
+
     virtual IOperand *  operator-(const IOperand &rhs) const = 0;
     virtual IOperand *  operator*(const IOperand &rhs) const = 0;
     virtual IOperand *  operator/(const IOperand &rhs) const = 0;
     virtual IOperand *  operator%(const IOperand &rhs) const = 0;
-*/
+
     virtual ~IOperand() {}
 
 };
@@ -546,7 +546,6 @@ class Operand : public IOperand {
     ~Operand() {};
 };
 
-//TODO: create factory for creating operands
 //TODO: Implement executor 
 //TODO: make code clearer for the operator overloads
 /*
@@ -598,6 +597,39 @@ void print_lexed(Lexer& lx) {
   }
 }
 
+class IOperandFactory {
+  public:
+    IOperand * createInt8(const std::string & value) {
+      return new Operand<int8_t>(Int8, std::stoull(value), value);
+    }
+    IOperand * createInt16(const std::string & value) {
+      return new Operand<int16_t>(Int16, std::stoull(value), value);
+    }
+    IOperand * createInt32(const std::string & value) {
+      return new Operand<int32_t>(Int32, std::stoull(value), value);
+    }
+    IOperand * createFloat(const std::string & value) {
+      return new Operand<float>(Float, std::stof(value), value);
+    }
+    IOperand * createDouble(const std::string & value) {
+      return new Operand<double>(Double, std::stod(value), value);
+    }
+
+    IOperand * createOperand(eOperandType type, const std::string & value) {
+
+      IOperand *(IOperandFactory::*functions[5])(const std::string & value) = {&IOperandFactory::createInt8,
+              &IOperandFactory::createInt16,
+              &IOperandFactory::createInt32,
+              &IOperandFactory::createFloat,
+              &IOperandFactory::createDouble
+              };
+
+      return (this->*functions[type])(value);
+    }
+
+    ~IOperandFactory(){}
+};
+
 int main(int ac, char **av) {
   int *arg_types = check_if_program_file(ac, av);
 
@@ -608,16 +640,13 @@ int main(int ac, char **av) {
   
   for (int index = 0; index < (ac - 1); index++) {
     //Instantiate objects;
-    Operand<int8_t> ops(Int8, 35, std::to_string(35));
-    Operand<int16_t> op_2(Int16, 5, std::to_string(5));
     
-    try {
-      std::cout << (ops / op_2)->toString() << std::endl;
-    }
-    catch(const char* e) {
-      std::cout << e << std::endl;
-      return 1;
-    }
+    IOperandFactory factory;
+    IOperand *integer8 = factory.createOperand(Int8, std::to_string(34));
+
+    IOperand *floater = factory.createOperand(Float, std::to_string(7.0));
+
+    std::cout << (*integer8 / *floater)->toString() << std::endl;
     Lexer lx;
     Parser ps;
     //LEXER
