@@ -1,12 +1,21 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <fstream>
+#include <stack>
 #include <queue>
 #include <string.h>
 #include <vector>
 #include <cstdint>
 #include <typeinfo>
 #define INVALID_TOKEN "<invalid>"
+
+//*************************************** 
+/*
+*  ENUMS
+*    1. eOperandType
+*    2. args_type
+*
+****************************************/
 
 enum eOperandType {
   Int8,
@@ -21,6 +30,20 @@ enum args_type {
   PROGRAM_FILE,
   FROM_STDIN
 };
+
+//*************************************** 
+/*
+*  HELPER FUNCTIONS
+*    1. pretty_print_type
+*    2. get_word
+*    3. split_string
+*    4. check_command
+*    5. check_value
+*    6. is_valid_instruction
+*    7. check_if_program_file
+*    8. mapType
+*
+****************************************/
 
 void pretty_print_type(int type_index) {
   std::string types[] = {"Int8",
@@ -48,7 +71,8 @@ std::vector<std::string> split_string(const std::string& line, char delim) {
 
   while (index < (int)line.size()) {
     index = line.find_first_not_of(delim, index);
-    word = get_word(line, index, delim);
+    word  = get_word(line, index, delim);
+
     split.push_back(word);
     index += word.size();
   }
@@ -92,14 +116,17 @@ std::string check_value(const std::vector<std::string>& split) {
                           "double"};
 
   value_type = get_word(split[1], 0, '(');
-  value = get_word(split[1], value_type.size(), ' ');
+  value      = get_word(split[1], value_type.size(), ' ');
   
   for (int index = 0; index < 5; index++) {
     if (!strcmp(value_type.c_str(), values[index])) {
-      value_type[0] = toupper(value_type[0]);
-      result = value_type;
+      
+      value_type = std::to_string(index);
+      result        = value_type;
+      
       if (value.c_str()[0] == '(' && value.c_str()[value.size() - 1] == ')') {
-        result += "-" + value.substr(1, value.size() - 2);
+
+        result      += "-" + value.substr(1, value.size() - 2);
         return result;
       }
     }
@@ -129,14 +156,16 @@ std::string is_valid_instruction(const std::vector<std::string>& split) {
   }
   else if (!strcmp(instr.c_str(), "push") ||
            !strcmp(instr.c_str(), "assert")) {
+
     value = check_value(split);
+
     if (strcmp(value.c_str(), INVALID_TOKEN)) {
       result += instr + "-";
     }
-    result += value;
+    result   += value;
   }
   else {
-    result += instr;
+    result   += instr;
   }
 
   if (split.size() > 2) {
@@ -147,6 +176,74 @@ std::string is_valid_instruction(const std::vector<std::string>& split) {
 
   return result;
 }
+
+int *check_if_program_file(int ac, char **av) {
+  int *array = NULL;  
+  
+  if (ac < 2) {
+    array = (int *)malloc(sizeof(int) * 1);
+    if (!array) {
+      return NULL;
+    }
+    array[0] = NO_PARAMS;
+    return array;
+  }
+  
+  array = (int *)malloc(sizeof(int) * (ac - 1));
+  if (!array) {
+    return NULL;
+  }  
+
+  for (int index = 1; index < ac; index++) {
+    if (ac >= 2) {
+      struct stat buf;
+      if (!stat(av[index], &buf)) {
+        std::cout << "It's a file!" << std::endl;
+        array[index - 1] = PROGRAM_FILE;
+      }
+      else {
+        std::cout << "Not a file!" << std::endl;
+        array[index - 1] = FROM_STDIN;
+      }
+    }
+}
+  return array;
+}
+
+eOperandType mapType(const std::string s_type) {
+  eOperandType type;  
+
+  switch(std::stoi(s_type)) {
+    case 0:
+      type = Int8;
+      break;
+    case 1:
+      type = Int16;
+      break;
+    case 2:
+      type = Int32;
+      break;
+    case 3:
+      type = Float;
+      break;
+    case 4:
+      type = Double;
+      break;
+  }
+  return type;
+}
+
+//*************************************** 
+/*
+*  CLASSES
+*    1. IOperand
+*    2. Lexer
+*    3. Parser
+*    4. Operand
+*    5. IOperandFactory
+*    6. Executor
+*
+****************************************/
 
 class IOperand
 {
@@ -172,7 +269,7 @@ class IOperand
 class Lexer {
   private:
     std::queue<std::string> LexedQueue;
-
+    int line_nbr;
   public:
     /*
     * lex_it for when program is from a file
@@ -181,24 +278,18 @@ class Lexer {
     void lex_it(std::ifstream& p_file) {
       std::string token;
       std::string line;
-      int line_nbr = 0;
+      this->line_nbr = 0;
 
       LexedQueue.push("<file>");
 
       while (p_file.good()) {
         line_nbr++;
         std::getline(p_file, line);
-        try {
-          token = tokenize(line);
-          if (!strcmp(token.c_str(), INVALID_TOKEN)) {
-            throw token;
-          } 
-          LexedQueue.push(token);
-        }
-        catch(std::string token) {
-          std::cout << "Line " << line_nbr << ": Error : " << token << ": " << line << std::endl;
-          break;
-        }
+        token = tokenize(line);
+        if (!strcmp(token.c_str(), INVALID_TOKEN)) {
+          throw std::string("Invalid instruction: " + line);
+        } 
+        LexedQueue.push(token);
       }
     }
     
@@ -210,23 +301,18 @@ class Lexer {
       std::string line;
       std::string token;
       int index = 0;
-      int line_nbr = 0;
+      this->line_nbr = 0;
 
       LexedQueue.push("<stdin>");
 
       line = get_word(user_input, index, '\n');
       while (!line.empty()) {
-        try {
-          token = tokenize(line);
-          if (!strcmp(token.c_str(), INVALID_TOKEN)) {
-            throw token;
-          } 
-          LexedQueue.push(token);
-        }
-        catch(std::string token) {
-          std::cout << "Line " << line_nbr << ": Error : " << token << ": " << line << std::endl;
-          break;
-        }
+        token = tokenize(line);
+        if (!strcmp(token.c_str(), INVALID_TOKEN)) {
+          throw std::string("Invalid instruction: " + line);
+        } 
+        LexedQueue.push(token);
+
         index += line.size() + 1;
         if (index > (int)user_input.size()) {
           break;
@@ -247,6 +333,18 @@ class Lexer {
     std::queue<std::string> getLexedQueue() {
       return this->LexedQueue;
     }
+
+    void print_lexed() {
+      std::queue<std::string> LexedQueue = this->getLexedQueue();
+      while(!LexedQueue.empty()) {
+        std::cout<< LexedQueue.front() << std::endl;
+        LexedQueue.pop();
+      }
+    }
+
+    int getLineNbr() {
+      return this->line_nbr;
+    }
 };
 
 class Parser {
@@ -262,30 +360,26 @@ class Parser {
 
       if (!strcmp(input_type.c_str(), "<stdin>")) {
         if (strcmp(LexedQueue.back().c_str(), "<EOP>")) {
-          std::cout << "invalid program" << std::endl;
+          throw std::string("Missing ;; at end of program.");
         }
       }
       else if (!strcmp(input_type.c_str(), "<file>")) {
         if (strcmp(LexedQueue.back().c_str(), "exit")) {
-          std::cout << "invalid program" << std::endl;
+          throw std::string("Missing 'exit' instruction at the end of program.");
         }
       }
 
       line_nbr = -1;
       while(!LexedQueue.empty()) {
         line_nbr++;
-        try {
-          result_status = simulate_instruction(LexedQueue.front());       if (strcmp(result_status.c_str(), "OK")) {
-            throw result_status;
-          }
+        result_status = simulate_instruction(LexedQueue.front()); 
+        if (strcmp(result_status.c_str(), "OK")) {
+          throw result_status;
         }
-        catch(std::string e) {
-          std::cout << "Line " << line_nbr << ": Error : " << e << std::endl;
-          break;
-        }
+
+        this->ParsedQueue.push(LexedQueue.front());
         LexedQueue.pop();
       }
-       
     }
 
     std::queue<std::string> getParsedQueue() {
@@ -294,7 +388,9 @@ class Parser {
 
     std::string simulate_instruction(const std::string& instr) {
       std::string str;
-      std::string result = "OK";      
+      std::string result = "OK";
+      std::string type   = split_string(instr, '-')[1];
+      std::string value  = split_string(instr, '-')[2];      
 
       str = get_word(instr, 0, '-');
       if (!strcmp(str.c_str(), "pop")    ||
@@ -303,6 +399,9 @@ class Parser {
         if (nbr_elements_simulated_stack == 0) {
           str[0] = toupper(str[0]);
           result = str + " on empty stack";
+        }
+        else {
+          nbr_elements_simulated_stack--;
         }
       }
       else if (!strcmp(str.c_str(), "add") ||
@@ -319,12 +418,51 @@ class Parser {
         }
       }
       else if (!strcmp(str.c_str(), "push")) {
-        this->nbr_elements_simulated_stack++;
-      }
+        try {
+          switch(std::stoi(type)) {
+            case 0:
+              std::stoi(value);
+              break;
+            case 1:
+              std::stoi(value);
+              break;
+            case 2:
+              std::stoul(value);
+              break;
+            case 3:
+              std::stof(value);
+              break;
+            case 4:
+              std::stoll(value);
+              break;
+            }
+           }
+            catch(std::out_of_range e) {
+              if (value[0] == '-') {
+                throw std::string("Underflow");
+              }
+              else {
+                throw std::string("Overflow");
+              }
+            }
+          this->nbr_elements_simulated_stack++;
+        }
+
 
       return result;
     }
 
+    void print_parsed() {
+      std::queue<std::string> ParsedQueue = this->getParsedQueue();
+      while(!ParsedQueue.empty()) {
+        std::cout<< ParsedQueue.front() << std::endl;
+        ParsedQueue.pop();
+      }
+    }
+
+    int getLineNbr() {
+      return this->line_nbr;
+    }
 };
 
 template<typename T>
@@ -546,56 +684,6 @@ class Operand : public IOperand {
     ~Operand() {};
 };
 
-//TODO: Implement executor 
-//TODO: make code clearer for the operator overloads
-/*
-* Check if CLI parameters are reference to a programa file
-* or the program itself is been passed on stdin
-* @param1 - int
-* @param2 - char **
-* 
-* return ENUM args_type
-*/
-int *check_if_program_file(int ac, char **av) {
-  int *array = NULL;  
-  
-  if (ac < 2) {
-    array = (int *)malloc(sizeof(int) * 1);
-    if (!array) {
-      return NULL;
-    }
-    array[0] = NO_PARAMS;
-    return array;
-  }
-  
-  array = (int *)malloc(sizeof(int) * (ac - 1));
-  if (!array) {
-    return NULL;
-  }  
-
-  for (int index = 1; index < ac; index++) {
-    if (ac >= 2) {
-      struct stat buf;
-      if (!stat(av[index], &buf)) {
-        std::cout << "It's a file!" << std::endl;
-        array[index - 1] = PROGRAM_FILE;
-      }
-      else {
-        std::cout << "Not a file!" << std::endl;
-        array[index - 1] = FROM_STDIN;
-      }
-    }
-}
-  return array;
-}
-
-void print_lexed(Lexer& lx) {
-  std::queue<std::string> LexedQueue = lx.getLexedQueue();
-  while(!LexedQueue.empty()) {
-    std::cout<< LexedQueue.front() << std::endl;
-    LexedQueue.pop();
-  }
-}
 
 class IOperandFactory {
   public:
@@ -630,6 +718,161 @@ class IOperandFactory {
     ~IOperandFactory(){}
 };
 
+class Executor {
+  private:
+    std::stack<IOperand *> stack_container;
+    IOperandFactory factory;
+    int line_nbr;
+  public:
+
+     void execute_it (std::queue<std::string> ParsedQueue) {
+       std::vector<std::string> instruction;
+       this->line_nbr = 0;
+
+       while(!ParsedQueue.empty()) {
+         this->line_nbr++;
+         instruction = split_string(ParsedQueue.front(), '-');
+         if (!strcmp(instruction[0].c_str(), "push")) {
+           Executor::push_it(instruction[1], instruction[2]);
+         }
+         else if (!strcmp(instruction[0].c_str(), "pop")) {
+           Executor::pop_it();
+         }
+         else if (!strcmp(instruction[0].c_str(), "dump")) {
+           Executor::dump_it();
+         }
+         else if (!strcmp(instruction[0].c_str(), "assert")) {
+           Executor::assert_it(instruction[1], instruction[2]);
+         }
+         else if (!strcmp(instruction[0].c_str(), "add")) {
+           IOperand *v1 = this->stack_container.top();
+           this->stack_container.pop();
+           IOperand *v2 = this->stack_container.top();
+           this->stack_container.pop();
+
+           this->stack_container.push(*v2 + *v1);
+         }
+         else if (!strcmp(instruction[0].c_str(), "sub")) {
+           IOperand *v1 = this->stack_container.top();
+           this->stack_container.pop();
+           IOperand *v2 = this->stack_container.top();
+           this->stack_container.pop();
+
+           this->stack_container.push(*v2 - *v1);
+         }
+         else if (!strcmp(instruction[0].c_str(), "mul")) {
+           IOperand *v1 = this->stack_container.top();
+           this->stack_container.pop();
+           IOperand *v2 = this->stack_container.top();
+           this->stack_container.pop();
+
+           this->stack_container.push(*v2 * *v1);
+         }
+         else if (!strcmp(instruction[0].c_str(), "div")) {
+           IOperand *v1 = this->stack_container.top();
+           if (std::stoull(v1->toString()) == 0 ||
+               std::stof(v1->toString()) == 0 || 
+               std::stod(v1->toString()) == 0) {
+             throw std::string("Division by zero."); 
+           }
+           this->stack_container.pop();
+           IOperand *v2 = this->stack_container.top();
+           this->stack_container.pop();
+
+           this->stack_container.push(*v2 / *v1);
+         }
+         else if (!strcmp(instruction[0].c_str(), "mod")) {
+           IOperand *v1 = this->stack_container.top();
+           if (std::stoull(v1->toString()) == 0 ||
+               std::stof(v1->toString()) == 0 || 
+               std::stod(v1->toString()) == 0) {
+             throw std::string("Mod division by zero.");
+           }
+           this->stack_container.pop();
+           IOperand *v2 = this->stack_container.top();
+           this->stack_container.pop();
+
+           this->stack_container.push(*v2 % *v1);
+         }
+         else if (!strcmp(instruction[0].c_str(), "print")) {
+           Executor::print_it();
+         }
+         ParsedQueue.pop();
+       }
+     }
+     
+     void push_it (const std::string s_type, 
+                   const std::string s_value) {
+       IOperand *element = NULL;
+       eOperandType type = mapType(s_type);
+
+       element = factory.createOperand(type, s_value);
+       this->stack_container.push(element);
+     }
+     
+     void pop_it() {
+       this->stack_container.pop();
+     }
+
+     void dump_it() {
+       std::stack<IOperand *> copy_of_stack = this->stack_container;
+       while (!copy_of_stack.empty()) {
+         std::cout << copy_of_stack.top()->toString() << std::endl;
+         copy_of_stack.pop();
+       }
+     }
+
+     void assert_it (const std::string s_type, 
+                   const std::string s_value) {
+       eOperandType type = mapType(s_type);
+       IOperand *assert_element = factory.createOperand(type, s_value);
+       try {
+         if (type != this->stack_container.top()->getType()) {
+           throw "Not same type!";
+         }
+         if (type < 3) {
+           if (std::stoull(assert_element->toString()) != 
+               std::stoull(this->stack_container.top()->toString())) {
+             throw "Not same value!";
+           }
+         }
+         else if (type == Float) {
+           if (std::stof(assert_element->toString()) != 
+               std::stof(this->stack_container.top()->toString())) {
+             throw "Not same value!";
+           }
+         }
+         else if (type == Double) {
+           if (std::stod(assert_element->toString()) != 
+               std::stod(this->stack_container.top()->toString())) {
+             throw "Not same value!";
+           }
+         }
+       }
+       catch(const char *e) {
+         std::cout << e << std::endl;
+       }
+     }
+
+     void print_it () {
+       if (this->stack_container.top()->getType() == Int8) {
+         std::cout << (char)std::stoi(this->stack_container.top()->toString()) << std::endl;
+       }  
+     }
+
+    ~Executor() {}
+
+     int getLineNbr() {
+       return this->line_nbr;
+     }
+};
+
+//*************************************** 
+/*
+*  MAIN
+*
+****************************************/
+
 int main(int ac, char **av) {
   int *arg_types = check_if_program_file(ac, av);
 
@@ -640,45 +883,42 @@ int main(int ac, char **av) {
   
   for (int index = 0; index < (ac - 1); index++) {
     //Instantiate objects;
-    
-    IOperandFactory factory;
-    IOperand *integer8 = factory.createOperand(Int8, std::to_string(34));
-
-    IOperand *floater = factory.createOperand(Float, std::to_string(7.0));
-
-    std::cout << (*integer8 / *floater)->toString() << std::endl;
     Lexer lx;
     Parser ps;
     //LEXER
-    if (arg_types[index] == PROGRAM_FILE) {
-      std::ifstream p_file;
-      p_file.open(av[index + 1]);
-      lx.lex_it(p_file);
-      print_lexed(lx);
-      p_file.close();
+    try {
+      if (arg_types[index] == PROGRAM_FILE) {
+        std::ifstream p_file;
+        p_file.open(av[index + 1]);
+        lx.lex_it(p_file);
+        p_file.close();
+      }
+      else if (arg_types[index] == FROM_STDIN) {
+        std::string str(av[index + 1]);
+        lx.lex_it(str);
+      }
     }
-    else if (arg_types[index] == FROM_STDIN) {
-      std::string str(av[index + 1]);
-      lx.lex_it(str);
-      print_lexed(lx);
+    catch(std::string e) {
+      std::cout << "Line " << lx.getLineNbr() << ": Error : " << e << std::endl;
+      return 1;
     }
-
     //PARSER
-    ps.parse_it(lx.getLexedQueue());
+    try {
+      ps.parse_it(lx.getLexedQueue());
+    }
+    catch(std::string e) {
+      std::cout << "Line " << ps.getLineNbr() << ": Error : " << e << std::endl;
+      return 1;
+    }
+
+    Executor ex;
+    try {
+      ex.execute_it(ps.getParsedQueue());
+    }
+    catch(std::string e) {
+      std::cout << "Line " << ex.getLineNbr() << ": Error : " << e << std::endl;
+    }
    }
-
-  free(arg_types);
-  //TODO: Executor
-  //EXECUTOR
-  /*
-   * executor(queue<IOperand> parsed);
-   * create stack container
-   * loop through Parsed Queue:
-   *   -> until Queue empty
-   *   -> until queue element != exit
-   * Executor class methods == 'Assembler' instructions
-   */
-
 
   return 0;
 }
